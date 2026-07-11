@@ -1,0 +1,31 @@
+services:
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DATABASE_URL=sqlite+aiosqlite:///./pipeflow.db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-me}
+    volumes: ["./backend:/app"]
+    depends_on: [redis]
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build: ./backend
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DATABASE_URL=sqlite+aiosqlite:///./pipeflow.db
+      - REDIS_URL=redis://redis:6379/0
+    volumes: ["./backend:/app"]
+    depends_on: [redis]
+    command: celery -A app.services.worker worker --loglevel=info
+
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    volumes: ["./frontend:/app", "/app/node_modules"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
